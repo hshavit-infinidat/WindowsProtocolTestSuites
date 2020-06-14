@@ -93,14 +93,14 @@ namespace Microsoft.Protocols.TestSuites.FileSharing.Auth.TestSuite
         {
             base.TestInitialize();
 
-            if (!IsComputerInDomain)
-            {
-                BaseTestSite.Assert.Inconclusive("Kerberos Authentication test cases are not applicable in non-domain environment");
-            }
-
             if (servicePrincipalName == null)
             {
                 servicePrincipalName = Smb2Utility.GetCifsServicePrincipalName(TestConfig.SutComputerName);
+                if (servicePrincipalName == null)
+                {
+                    BaseTestSite.Log.Add(LogEntryKind.Debug, "The FQDN name is not fetched by reversing DNS lookup, use SutComputerName directly");
+                    servicePrincipalName = "cifs/" + TestConfig.SutComputerName;
+                }
             }
 
             switch (TestConfig.DefaultSecurityPackage)

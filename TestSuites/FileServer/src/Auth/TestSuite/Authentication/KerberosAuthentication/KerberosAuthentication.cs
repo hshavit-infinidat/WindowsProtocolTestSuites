@@ -50,7 +50,6 @@ namespace Microsoft.Protocols.TestSuites.FileSharing.Auth.TestSuite
 
         public const int DefaultKdcPort = 88;
 
-        public static bool IsComputerInDomain;
         public static string KDCIP;
         public static int KDCPort;
         public static KerberosConstValue.OidPkt OidPkt;
@@ -65,22 +64,6 @@ namespace Microsoft.Protocols.TestSuites.FileSharing.Auth.TestSuite
         public static void ClassInitialize(TestContext testContext)
         {
             Initialize(testContext);
-            BaseTestSite.Log.Add(LogEntryKind.Debug, "Check if current computer is in a domain.");
-            try
-            {
-                using (Domain domain = Domain.GetComputerDomain())
-                {
-                    DomainController dc = domain.FindDomainController(LocatorOptions.KdcRequired);
-                    KDCIP = dc.IPAddress;
-                    IsComputerInDomain = true;
-                }
-                KDCPort = DefaultKdcPort;
-                OidPkt = KerberosConstValue.OidPkt.KerberosToken;
-            }
-            catch
-            {
-                IsComputerInDomain = false;
-            }
         }
 
         [ClassCleanup]
@@ -89,14 +72,31 @@ namespace Microsoft.Protocols.TestSuites.FileSharing.Auth.TestSuite
             Cleanup();
         }
 
+        private void SetupDC()
+        {
+            if (KDCIP != null)
+            {
+                return;
+            }
+            
+            BaseTestSite.Log.Add(LogEntryKind.Debug, $"Finding SUT's domain controller for domain {TestConfig.DomainName}");
+
+            DirectoryContext directory_context = new DirectoryContext(DirectoryContextType.Domain, TestConfig.DomainName);
+
+            using (Domain domain = Domain.GetDomain(directory_context))
+            {
+                DomainController dc = domain.FindDomainController(LocatorOptions.KdcRequired);
+                KDCIP = dc.IPAddress;
+
+                BaseTestSite.Log.Add(LogEntryKind.Debug, $"Found SUT's domain controller: {dc.Name}, {KDCIP}");
+            }
+            KDCPort = DefaultKdcPort;
+            OidPkt = KerberosConstValue.OidPkt.KerberosToken;
+        }
+
         protected override void TestInitialize()
         {
             base.TestInitialize();
-
-            if (!IsComputerInDomain)
-            {
-                BaseTestSite.Assert.Inconclusive("Kerberos Authentication test cases are not applicable in non-domain environment");
-            }
 
             if (servicePrincipalName == null)
             {
@@ -125,6 +125,8 @@ namespace Microsoft.Protocols.TestSuites.FileSharing.Auth.TestSuite
             smb2Client = null;
 
             smb2Client2 = null;
+
+            SetupDC();
         }
 
         protected override void TestCleanup()

@@ -572,8 +572,13 @@ namespace Microsoft.Protocols.TestTools.StackSdk.FileAccessService.Smb2
             bool useServerToken)
         {
             serverPrincipleName = server;
-            IPHostEntry hostEntry = Dns.GetHostEntry(server);
-            this.client.ConnectOverTCP(hostEntry.AddressList[0]);
+            IPAddress address;
+            if (!IPAddress.TryParse(server, out address))
+            {
+                IPHostEntry hostEntry = Dns.GetHostEntry(server);
+                address = hostEntry.AddressList[0];
+            }
+            this.client.ConnectOverTCP(address);
             InternalConnectShare(domain, userName, password, IPC_CONNECT_STRING, timeout, securityPackage, useServerToken);
         }
 
